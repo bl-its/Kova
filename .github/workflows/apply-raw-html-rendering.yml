@@ -1,0 +1,23 @@
+name: Apply raw HTML rendering
+
+on:
+  push:
+    branches:
+      - agent/raw-html-rendering
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-test:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/raw-html-rendering
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 
