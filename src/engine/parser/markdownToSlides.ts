@@ -449,6 +449,10 @@ function convertRoot(
             }
           } else if (v === '<hr>' || v === '<hr/>' || v === '<hr />') {
             elements.push({ type: 'paragraph', text: '', html: '<hr>' });
+          } else {
+            // Preserve trusted raw block HTML. The plain-text projection keeps
+            // auto-layout and PPTX export working without a separate HTML model.
+            elements.push({ type: 'paragraph', text: rawHtmlToText(v), html: v, rawHtml: true });
           }
         }
         break;
@@ -635,6 +639,25 @@ function rawText(src: string, node: Node): string {
 
 // ── Inline node → HTML ───────────────────────────────────────────────────────
 
+// Best-effort plain-text projection for PPTX export and layout estimation.
+// Raw HTML remains untouched in `html`; only this parallel text value is reduced.
+function rawHtmlToText(html: string): string {
+  return html
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(?:p|div|li|h[1-6]|tr)>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 function inlineToHtml(children: Node[]): string {
   return (children as any[]).map((node) => {
     switch (node.type) {
@@ -646,6 +669,7 @@ function inlineToHtml(children: Node[]): string {
       case 'link':        return `<a href="${escLinkUrl(node.url as string)}">${inlineToHtml(node.children)}</a>`;
       case 'image':       return `<img src="${escUrl(node.url as string)}" alt="${escHtml(node.alt ?? '')}" />`;
       case 'break':       return '<br>';
+      case 'html':        return node.value as string;
       case 'inlineMath': {
         try {
           return katex.renderToString(node.value as string, { displayMode: false, throwOnError: false });
