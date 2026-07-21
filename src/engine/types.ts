@@ -22,7 +22,7 @@ export interface ListItem {
 }
 
 export type SlideElement =
-  | { type: 'paragraph'; text: string; html: string }
+  | { type: 'paragraph'; text: string; html: string; rawHtml?: boolean }
   | { type: 'list'; ordered: boolean; items: ListItem[] }
   | { type: 'image'; src: string; alt: string; title?: string; caption?: string }
   | { type: 'code'; lang: string; value: string }

@@ -93,7 +93,9 @@ const CALLOUT_ICONS: Record<string, React.ReactNode> = {
 function ElementNode({ el }: { el: SlideElement }) {
   switch (el.type) {
     case 'paragraph':
-      return <p className="sl-para" dangerouslySetInnerHTML={{ __html: el.html }} />;
+      return el.rawHtml
+        ? <div className="sl-para sl-raw-html" dangerouslySetInnerHTML={{ __html: el.html }} />
+        : <p className="sl-para" dangerouslySetInnerHTML={{ __html: el.html }} />;
 
     case 'list':
       return el.ordered
