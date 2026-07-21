@@ -8,6 +8,7 @@ def replace(path: str, old: str, new: str) -> None:
         raise SystemExit(f'Expected text not found in {path}')
     p.write_text(text.replace(old, new, 1), encoding='utf-8')
 
+
 replace(
     'src/engine/types.ts',
     "| { type: 'paragraph'; text: string; html: string }",
@@ -25,8 +26,39 @@ replace(
           } else {
             // Preserve trusted raw block HTML. The plain-text projection keeps
             // auto-layout and PPTX export working without a separate HTML model.
-            elements.push({ type: 'paragraph', text: stripHtml(v), html: v, rawHtml: true });
+            elements.push({ type: 'paragraph', text: rawHtmlToText(v), html: v, rawHtml: true });
           }
+""",
+)
+
+replace(
+    'src/engine/parser/markdownToSlides.ts',
+    """// ── Inline node → HTML ───────────────────────────────────────────────────────
+
+function inlineToHtml(children: Node[]): string {
+""",
+    """// ── Inline node → HTML ───────────────────────────────────────────────────────
+
+// Best-effort plain-text projection for PPTX export and layout estimation.
+// Raw HTML remains untouched in `html`; only this parallel text value is reduced.
+function rawHtmlToText(html: string): string {
+  return html
+    .replace(/<style\\b[^>]*>[\\s\\S]*?<\\/style>/gi, '')
+    .replace(/<script\\b[^>]*>[\\s\\S]*?<\\/script>/gi, '')
+    .replace(/<br\\s*\\/?>/gi, '\\n')
+    .replace(/<\\/(?:p|div|li|h[1-6]|tr)>/gi, '\\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '\"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\\n{3,}/g, '\\n\\n')
+    .trim();
+}
+
+function inlineToHtml(children: Node[]): string {
 """,
 )
 
@@ -75,6 +107,17 @@ describe('raw HTML rendering', () => {
       expect(paragraph.rawHtml).toBe(true);
       expect(paragraph.html).toContain('display:grid');
       expect(paragraph.text).toBe('Hello');
+    }
+  });
+
+  it('drops style contents from the PPTX plain-text projection', () => {
+    const doc = parseDocument('## Demo\\n\\n<style>.demo { color: red; }</style>');
+    const paragraph = doc.slides[0].elements[0];
+    expect(paragraph.type).toBe('paragraph');
+    if (paragraph.type === 'paragraph') {
+      expect(paragraph.rawHtml).toBe(true);
+      expect(paragraph.html).toContain('<style>');
+      expect(paragraph.text).toBe('');
     }
   });
 });
